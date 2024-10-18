@@ -5,68 +5,64 @@ import __dirname from '../util/rootpath.js'
 
 const cartPath = path.join(__dirname, 'data', 'cart.json')
 
+const getCartFileContent = () => {
+  let content = { products: [], totalPrice: 0 }
+  try {
+    content = JSON.parse(fs.readFileSync(cartPath, 'utf8'))
+  } catch(err) {
+    console.error(`File reading error: ${err}`)
+  }
+  return content
+}
+
+const setCartFileContent = (content) => {
+  try {
+    fs.writeFileSync(cartPath, JSON.stringify(content))
+  } catch(err) {
+    console.error(`File writing error: ${err}`)
+    return false
+  }
+  return true
+}
+
 class Cart {
   static addProduct(id, productPrice) {
+    // console.log(`Add to Cart id: ${id}, product prive: ${productPrice}`)
     // Fetch the previous cart
-    fs.readFile(cartPath, (err, fileContent) => {
-      let cart = { products: [], totalPrice: 0 }
-      if (!err) {
-        cart = JSON.parse(fileContent)
-      }
-      // Analyze the cart => Find existing product
-      const existingProductIndex = cart.products.findIndex(
-        prod => prod.id === id
-      );
-      const existingProduct = cart.products[existingProductIndex]
-      let updatedProduct
-      // Add new product/ increase quantity
-      if (existingProduct) {
-        updatedProduct = { ...existingProduct }
-        updatedProduct.qty = updatedProduct.qty + 1
-        cart.products = [...cart.products]
-        cart.products[existingProductIndex] = updatedProduct
-      } else {
-        updatedProduct = { id: id, qty: 1 }
-        cart.products = [...cart.products, updatedProduct]
-      }
-      cart.totalPrice = cart.totalPrice + +productPrice
-      fs.writeFile(cartPath, JSON.stringify(cart), err => {
-        if (err) console.log(err)
-      })
-    })
+    const cart = getCartFileContent()
+    // Analyze the cart => Find existing product
+    const existingProductIndex = cart.products.findIndex( prod => prod.id === id )
+    const existingProduct = cart.products[existingProductIndex]
+    let updatedProduct
+    // Add new product/ increase quantity
+    if (existingProduct) {
+      updatedProduct = { ...existingProduct }
+      updatedProduct.qty = updatedProduct.qty + 1
+      cart.products[existingProductIndex] = updatedProduct
+    } else {
+      updatedProduct = { id: id, qty: 1 }
+      cart.products = [...cart.products, updatedProduct]
+    }
+    cart.totalPrice = cart.totalPrice + +productPrice
+    setCartFileContent(cart)
   }
 
   static deleteProduct(id, productPrice) {
-    fs.readFile(cartPath, (err, fileContent) => {
-      if (err) {
+    const updatedCart = getCartFileContent()
+    const product = updatedCart.products.find(prod => prod.id === id)
+    if (!product) {
         return
-      }
-      const updatedCart = { ...JSON.parse(fileContent) }
-      const product = updatedCart.products.find(prod => prod.id === id)
-      if (!product) {
-          return
-      }
-      const productQty = product.qty
-      updatedCart.products = updatedCart.products.filter(
-        prod => prod.id !== id
-      )
-      updatedCart.totalPrice = updatedCart.totalPrice - productPrice * productQty
+    }
+    const productQty = product.qty
+    updatedCart.products = updatedCart.products.filter( prod => prod.id !== id )
+    updatedCart.totalPrice = updatedCart.totalPrice - productPrice * productQty
 
-      fs.writeFile(cartPath, JSON.stringify(updatedCart), err => {
-        if (err) console.log(err)
-      })
-    })
+    setCartFileContent(updatedCart)
   }
 
-  static getCart(callbck) {
-    fs.readFile(cartPath, (err, fileContent) => {
-      const cart = JSON.parse(fileContent)
-      if (err) {
-        callbck(null)
-      } else {
-        callbck(cart)
-      }
-    })
+  static getCart() {
+      const cart = getCartFileContent()
+      return cart
   }
 }
 

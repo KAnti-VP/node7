@@ -6,14 +6,24 @@ import Cart from './cart.js'
 
 const prodsPath = path.join(__dirname, 'data', 'products.json')
 
-const getProductsFromFile = callbck => {
-  fs.readFile(prodsPath, (err, fileContent) => {
-    if (err) {
-      callbck([])
-    } else {
-      callbck(JSON.parse(fileContent))
-    }
-  })
+const getProductsFileContent = () => {
+  let content = []
+  try {
+    content = JSON.parse(fs.readFileSync(prodsPath, 'utf8'))
+  } catch(err) {
+    console.error(`File reading error: ${err}`)
+  }
+  return content
+}
+
+const setProductsFileContent = (content) => {
+  try {
+    fs.writeFileSync(prodsPath, JSON.stringify(content))
+  } catch(err) {
+    console.error(`File writing error: ${err}`)
+    return false
+  }
+  return true
 }
 
 class Product {
@@ -26,47 +36,37 @@ class Product {
   }
 
   save() {
-    getProductsFromFile(products => {
-      if (this.id) {
-        const existingProductIndex = products.findIndex(
-          prod => prod.id === this.id
-        )
-        const updatedProducts = [...products]
-        updatedProducts[existingProductIndex] = this
-        fs.writeFile(prodsPath, JSON.stringify(updatedProducts), err => {
-          if (err) console.log(err);
-        })
-      } else {
-        this.id = Math.random().toString()
-        products.push(this)
-        fs.writeFile(prodsPath, JSON.stringify(products), err => {
-          if (err) console.log(err)
-        })
-      }
-    })
+    const products = getProductsFileContent()
+    if (this.id) {
+      const existingProductIndex = products.findIndex(prod => prod.id === this.id)
+      products[existingProductIndex] = this
+      setProductsFileContent(products)
+    } else {
+      this.id = Math.random().toString()
+      products.push(this)
+      setProductsFileContent(products)
+    }
   }
 
   static deleteById(id) {
-    getProductsFromFile(products => {
-      const product = products.find(prod => prod.id === id)
-      const updatedProducts = products.filter(prod => prod.id !== id)
-      fs.writeFile(prodsPath, JSON.stringify(updatedProducts), err => {
-        if (!err) {
-          Cart.deleteProduct(id, product.price)
-        }
-      })
-    })
+    const products = getProductsFileContent()
+    const product = products.find(prod => prod.id === id)
+    const updatedProducts = products.filter(prod => prod.id !== id)
+    const isDeleted = setProductsFileContent(updatedProducts)
+    if (isDeleted) {
+      Cart.deleteProduct(id, product.price)
+    }
   }
 
-  static fetchAll(callbck) {
-    getProductsFromFile(callbck)
+  static fetchAll() {
+    const products = getProductsFileContent()
+    return products
   }
 
-  static findById(id, callbck) {
-    getProductsFromFile(products => {
-      const product = products.find(prod => prod.id === id)
-      callbck(product)
-    })
+  static findById(id) {
+    const products = getProductsFileContent()
+    const product = products.find(prod => prod.id === id)
+    return product
   }
 }
 
